@@ -1,0 +1,10 @@
+{
+  "appId": "com.schoolhub.app",
+  "appName": "School Hub",
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_pomodoro"
+    }
+  }
+}

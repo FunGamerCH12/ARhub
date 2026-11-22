@@ -1,0 +1,821 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+
+  <meta name="theme-color" content="#0A0A0C">
+  <meta name="description" content="School Hub - Ruang produktivitas pelajar">
+
+  <title>School Hub</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body data-page="home">
+
+  <div class="app-bg" aria-hidden="true">
+    <span class="orb o1"></span>
+    <span class="orb o2"></span>
+    <span class="orb o3"></span>
+    <div class="app-bg-grid"></div>
+    <div class="app-bg-grain"></div>
+    <div class="app-bg-vignette"></div>
+  </div>
+
+
+  <main class="app">
+
+    <!-- AREA HALAMAN -->
+    <section class="pages">
+
+
+<!-- BERANDA -->
+<div class="page active" id="home">
+
+  <header class="home-header">
+    <div class="greeting">
+      <span class="eyebrow" id="current-date">MEMUAT TANGGAL...</span>
+      <h1 id="greeting-title">Selamat datang.</h1>
+      <p id="greeting-subtitle">Mari mulai harimu.</p>
+    </div>
+
+    <div class="profile-icon" aria-label="School Hub">
+      <svg viewBox="0 0 24 24">
+        <path d="m3 9 9-5 9 5-9 5-9-5Z"/>
+        <path d="M7 11.2V16c3.2 2.5 6.8 2.5 10 0v-4.8"/>
+        <path d="M21 9v6"/>
+      </svg>
+    </div>
+  </header>
+
+  <!-- FOKUS HARI INI -->
+  <section class="home-section focus-section">
+
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">PRODUKTIVITAS</span>
+        <h2>Fokus hari ini</h2>
+      </div>
+
+      <span class="live-indicator">
+        <span></span>
+        Hari ini
+      </span>
+    </div>
+
+    <div class="focus-card">
+
+      <div class="focus-card-top">
+        <div class="focus-icon">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="13" r="8"/>
+            <path d="M12 9v4l3 2"/>
+            <path d="M9 2h6M12 2v3"/>
+          </svg>
+        </div>
+
+        <span class="focus-tag">TARGET HARIAN</span>
+      </div>
+
+      <div class="focus-main">
+        <div>
+          <div class="focus-time">
+            <span id="focus-hours">00</span>
+            <small>jam</small>
+            <span id="focus-minutes">00</span>
+            <small>menit</small>
+          </div>
+
+          <p class="focus-description">
+            Waktu belajar produktifmu
+          </p>
+        </div>
+
+        <div class="focus-ring" id="focus-ring"
+             role="img" aria-label="Progres fokus 0 persen">
+          <div class="focus-ring-inner">
+            <strong id="focus-percent">0%</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="focus-progress-track">
+        <div class="focus-progress-fill" id="focus-progress"></div>
+      </div>
+
+      <div class="focus-footer">
+        <span id="focus-status">Belum ada sesi fokus</span>
+        <span id="focus-target">Target 2 jam</span>
+      </div>
+
+      <button class="primary-action" data-go="focus">
+        <span>Mulai fokus</span>
+        <svg viewBox="0 0 24 24">
+          <path d="m9 18 6-6-6-6"/>
+        </svg>
+      </button>
+
+    </div>
+  </section>
+
+  <!-- RINGKASAN TUGAS -->
+  <section class="home-section">
+
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">AKADEMIK</span>
+        <h2>Ringkasan tugas</h2>
+      </div>
+
+      <button class="text-action" data-go="tasks">
+        Lihat semua
+        <svg viewBox="0 0 24 24">
+          <path d="m9 18 6-6-6-6"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="stats-grid">
+
+      <div class="stat-card">
+        <div class="stat-icon purple">
+          <svg viewBox="0 0 24 24">
+            <path d="M8 4h12v16H4V4h4Z"/>
+            <path d="M8 2v4M16 2v4M4 9h16"/>
+          </svg>
+        </div>
+        <span class="stat-label">Belum selesai</span>
+        <strong id="task-pending">0</strong>
+        <span class="stat-caption">Tugas aktif</span>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon green">
+          <svg viewBox="0 0 24 24">
+            <path d="m5 12 4 4L19 6"/>
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+        </div>
+        <span class="stat-label">Selesai</span>
+        <strong id="task-completed">0</strong>
+        <span class="stat-caption">Tugas dikerjakan</span>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- TUGAS TERDEKAT -->
+  <section class="home-section">
+
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">JANGAN TERLEWAT</span>
+        <h2>Tugas terdekat</h2>
+      </div>
+    </div>
+
+    <div class="upcoming-list" id="upcoming-tasks">
+
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M8 4h12v16H4V4h4Z"/>
+            <path d="M8 2v4M16 2v4M4 9h16"/>
+          </svg>
+        </div>
+        <strong>Belum ada tugas</strong>
+        <p>Tugas yang kamu tambahkan akan muncul di sini.</p>
+        <button class="small-action" data-go="tasks">
+          Tambah tugas
+        </button>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- KEUANGAN -->
+  <section class="home-section finance-section">
+
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">MANAJEMEN UANG</span>
+        <h2>Keuangan</h2>
+      </div>
+
+      <span class="month-label" id="finance-month">Bulan ini</span>
+    </div>
+
+    <div class="finance-card">
+
+      <div class="finance-top">
+        <div class="finance-icon">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="14" rx="3"/>
+            <path d="M3 10h18M16 15h2"/>
+          </svg>
+        </div>
+
+        <span class="finance-caption">TOTAL PENGELUARAN</span>
+      </div>
+
+      <strong class="finance-amount" id="finance-total">
+        Rp0
+      </strong>
+
+      <div class="finance-budget">
+        <div>
+          <span>Anggaran bulanan</span>
+          <strong id="finance-budget-text">Belum diatur</strong>
+        </div>
+        <span id="finance-percent">0%</span>
+      </div>
+
+      <div class="finance-progress-track">
+        <div class="finance-progress-fill"
+             id="finance-progress"></div>
+      </div>
+
+      <div class="finance-bottom">
+        <span id="finance-remaining">Atur anggaranmu</span>
+        <button data-go="finance" class="finance-link">
+          Detail
+          <svg viewBox="0 0 24 24">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- AKSES CEPAT -->
+  <section class="home-section quick-section">
+
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">AKSES CEPAT</span>
+        <h2>Mulai sesuatu</h2>
+      </div>
+    </div>
+
+    <div class="quick-grid">
+
+      <button class="quick-card" data-go="tasks">
+        <div class="quick-icon purple">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </div>
+        <strong>Tambah tugas</strong>
+        <span>Catat pekerjaanmu</span>
+      </button>
+
+      <button class="quick-card" data-go="notes">
+        <div class="quick-icon blue">
+          <svg viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 2v6h6M8 13h8M8 17h6"/>
+          </svg>
+        </div>
+        <strong>Buat catatan</strong>
+        <span>Simpan ide dan materi</span>
+      </button>
+
+      <button class="quick-card" data-go="focus">
+        <div class="quick-icon orange">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="13" r="8"/>
+            <path d="M12 9v4l3 2"/>
+          </svg>
+        </div>
+        <strong>Mulai belajar</strong>
+        <span>Bangun konsentrasi</span>
+      </button>
+
+      <button class="quick-card" data-go="more">
+        <div class="quick-icon green">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 7h18M3 12h18M3 17h18"/>
+          </svg>
+        </div>
+        <strong>Eksplorasi</strong>
+        <span>Fitur lainnya</span>
+      </button>
+
+    </div>
+
+  </section>
+
+  <div class="home-bottom-space"></div>
+
+</div>
+
+
+      <div class="page tasks-page" id="tasks">
+        <header class="subpage-header">
+          <div>
+            <span class="section-kicker">RUANG AKADEMIK</span>
+            <h1>Tugas</h1>
+            <p>Atur pekerjaanmu, satu per satu.</p>
+          </div>
+          <div class="subpage-mark task-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+          </div>
+        </header>
+
+        <section class="task-overview">
+          <div class="task-overview-main">
+            <span class="overview-label">PROGRES TUGAS</span>
+            <strong id="tasks-progress-count">0/0</strong>
+            <div class="tasks-progress-track"><span id="tasks-progress-fill"></span></div>
+            <small id="tasks-progress-caption">Mulai tambahkan tugas pertamamu</small>
+          </div>
+          <div class="task-overview-stats">
+            <div><strong id="tasks-open-count">0</strong><span>Aktif</span></div>
+            <div><strong id="tasks-done-count">0</strong><span>Selesai</span></div>
+          </div>
+        </section>
+
+        <div class="tasks-toolbar">
+          <label class="task-search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
+            <input id="task-search-input" type="search" placeholder="Cari tugas atau mata pelajaran..." autocomplete="off">
+          </label>
+        </div>
+
+        <div class="task-filters" role="group" aria-label="Filter tugas">
+          <button class="filter-pill active" data-task-filter="all">Semua <span id="filter-all-count">0</span></button>
+          <button class="filter-pill" data-task-filter="pending">Aktif <span id="filter-pending-count">0</span></button>
+          <button class="filter-pill" data-task-filter="completed">Selesai <span id="filter-completed-count">0</span></button>
+        </div>
+
+        <div class="task-list-heading">
+          <div><span class="section-kicker">DAFTAR PEKERJAAN</span><h2 id="task-list-title">Semua tugas</h2></div>
+          <span id="task-list-total">0 tugas</span>
+        </div>
+
+        <div class="task-list" id="task-list" aria-live="polite"></div>
+
+        <div class="tasks-bottom-space"></div>
+
+
+
+
+      </div>
+
+      <div class="page focus-page" id="focus">
+        <header class="subpage-header focus-page-header">
+          <div>
+            <span class="section-kicker">RUANG KONSENTRASI</span>
+            <h1>Fokus</h1>
+            <p>Berikan perhatian penuh pada satu hal.</p>
+          </div>
+          <div class="subpage-mark focus-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6M12 2v3"/></svg>
+          </div>
+        </header>
+
+        <section class="focus-timer-card">
+          <div class="focus-mode-switch" role="group" aria-label="Mode timer">
+            <button class="focus-mode active" data-focus-mode="work" type="button">Fokus</button>
+            <button class="focus-mode" data-focus-mode="break" type="button">Istirahat</button>
+          </div>
+
+          <div class="timer-orbit" id="timer-orbit">
+            <div class="timer-orbit-glow"></div>
+            <svg class="timer-svg" viewBox="0 0 260 260" aria-hidden="true">
+              <circle class="timer-track" cx="130" cy="130" r="116"/>
+              <circle class="timer-progress" id="timer-progress" cx="130" cy="130" r="116"/>
+            </svg>
+            <div class="timer-center">
+              <span class="timer-caption" id="timer-caption">WAKTU FOKUS</span>
+              <strong id="timer-display">25:00</strong>
+              <span class="timer-state" id="timer-state">Siap untuk mulai</span>
+            </div>
+          </div>
+
+          <div class="timer-controls">
+            <button class="timer-reset" id="timer-reset" type="button" aria-label="Atur ulang timer">
+              <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+            <button class="timer-main-button" id="timer-toggle" type="button">
+              <svg id="timer-play-icon" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7V5Z"/></svg>
+              <span id="timer-toggle-label">Mulai fokus</span>
+            </button>
+            <button class="timer-skip" id="timer-skip" type="button" aria-label="Lewati sesi">
+              <svg viewBox="0 0 24 24"><path d="m5 5 10 7-10 7V5ZM19 5v14"/></svg>
+            </button>
+          </div>
+
+          <div class="timer-presets" role="group" aria-label="Durasi fokus">
+            <button type="button" class="timer-preset active" data-work-minutes="25" data-break-minutes="5">25 / 5</button>
+            <button type="button" class="timer-preset" data-work-minutes="50" data-break-minutes="10">50 / 10</button>
+            <button type="button" class="timer-preset" data-work-minutes="15" data-break-minutes="3">15 / 3</button>
+          </div>
+          <p class="timer-preset-note">Menit fokus / menit istirahat</p>
+        </section>
+
+        <section class="focus-today-card">
+          <div class="focus-today-heading">
+            <div><span class="section-kicker">KONSISTENSI</span><h2>Fokus hari ini</h2></div>
+            <div class="focus-today-icon"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg></div>
+          </div>
+          <div class="focus-today-value"><strong id="focus-today-minutes">0</strong><span>menit terkumpul</span></div>
+          <div class="focus-today-track"><span id="focus-today-bar"></span></div>
+          <div class="focus-today-footer"><span id="focus-today-caption">Mulai sesi pertamamu</span><span id="focus-today-goal">Target 120 menit</span></div>
+        </section>
+
+        <section class="focus-tip-card">
+          <div class="focus-tip-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M8 14c-1.2-1-2-2.5-2-4.2a6 6 0 1 1 12 0c0 1.7-.8 3.2-2 4.2-.7.6-1 1.2-1 2H9c0-.8-.3-1.4-1-2Z"/></svg></div>
+          <div><strong>Tips menjaga fokus</strong><p>Singkirkan distraksi, tentukan satu target kecil, lalu kerjakan sampai timer selesai.</p></div>
+        </section>
+        <div class="focus-bottom-space"></div>
+      </div>
+
+      <div class="page notes-page" id="notes">
+        <header class="subpage-header notes-page-header">
+          <div>
+            <span class="section-kicker">RUANG IDE & MATERI</span>
+            <h1>Catatan</h1>
+            <p>Simpan hal penting, jangan sampai terlupa.</p>
+          </div>
+          <div class="subpage-mark notes-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+          </div>
+        </header>
+
+        <div class="notes-search-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input type="search" id="notes-search" placeholder="Cari catatan..." autocomplete="off">
+          <kbd>⌕</kbd>
+        </div>
+
+        <div class="notes-toolbar">
+          <div class="notes-filter-list" role="group" aria-label="Filter catatan">
+            <button type="button" class="notes-filter active" data-note-filter="all">Semua <span id="notes-count-all">0</span></button>
+            <button type="button" class="notes-filter" data-note-filter="pinned">Disematkan <span id="notes-count-pinned">0</span></button>
+          </div>
+          <span class="notes-total" id="notes-total">0 catatan</span>
+        </div>
+
+        <div class="notes-grid" id="notes-grid"></div>
+        <div class="notes-empty" id="notes-empty">
+          <div class="notes-empty-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg></div>
+          <strong id="notes-empty-title">Belum ada catatan</strong>
+          <p id="notes-empty-description">Mulai kumpulkan ide dan materi pentingmu di sini.</p>
+          <button type="button" id="notes-empty-add">Buat catatan pertama</button>
+        </div>
+        <div class="notes-bottom-space"></div>
+      </div>
+
+      <div class="page more-page" id="more">
+        <header class="subpage-header">
+          <div>
+            <span class="section-kicker">PUSAT FITUR</span>
+            <h1>Lainnya</h1>
+            <p>Alat pendukung belajar dan kehidupan pelajar.</p>
+          </div>
+          <div class="subpage-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
+          </div>
+        </header>
+
+        <div class="more-list">
+          <button type="button" class="more-card featured" data-go="finance">
+            <div class="more-icon" style="--c:#5EE0A0"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/></svg></div>
+            <div class="more-text"><strong>Pusat Keuangan</strong><span id="more-finance-caption">Catat uang masuk dan keluar</span></div>
+            <svg class="more-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+
+          <div class="more-card is-soon" aria-disabled="true">
+            <div class="more-icon" style="--c:#8B9CFF"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.4-3.4 2.7-5.2 6-5.2s5.6 1.8 6 5.2"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18 15.2c1.8.7 2.9 2.3 3.2 4.8"/></svg></div>
+            <div class="more-text"><strong>Kelompok</strong><span>Bagi tugas dan pantau kontribusi</span></div>
+            <em class="soon-badge">Segera hadir</em>
+          </div>
+
+          <div class="more-card is-soon" aria-disabled="true">
+            <div class="more-icon" style="--c:#FF9F6B"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 10v5M5.5 12.5h5M16 11.5h.01M18 13.5h.01"/></svg></div>
+            <div class="more-text"><strong>Mini Game</strong><span>Belajar santai lewat permainan</span></div>
+            <em class="soon-badge">Segera hadir</em>
+          </div>
+
+          <div class="more-card is-soon" aria-disabled="true">
+            <div class="more-icon" style="--c:#9AA0B4"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg></div>
+            <div class="more-text"><strong>Pengaturan</strong><span>Preferensi dan data aplikasi</span></div>
+            <em class="soon-badge">Segera hadir</em>
+          </div>
+        </div>
+        <div class="more-bottom-space"></div>
+      </div>
+
+      <div class="page finance-page" id="finance">
+        <header class="fin-header">
+          <button type="button" class="fin-back" data-go="more" aria-label="Kembali ke Lainnya">
+            <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <div>
+            <span class="section-kicker">PUSAT KEUANGAN</span>
+            <h1>Keuangan</h1>
+          </div>
+        </header>
+
+        <div class="fin-month-switch">
+          <button type="button" id="fin-prev" aria-label="Bulan sebelumnya"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <strong id="fin-month-label">Bulan ini</strong>
+          <button type="button" id="fin-next" aria-label="Bulan berikutnya"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+
+        <section class="fin-hero">
+          <span class="fin-hero-label">SALDO BULAN INI</span>
+          <strong class="fin-hero-balance" id="fin-balance">Rp0</strong>
+          <div class="fin-hero-split">
+            <div class="fin-flow">
+              <span class="fin-flow-icon in"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
+              <div><small>Pemasukan</small><b id="fin-income">Rp0</b></div>
+            </div>
+            <div class="fin-flow">
+              <span class="fin-flow-icon out"><svg viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></span>
+              <div><small>Pengeluaran</small><b id="fin-expense">Rp0</b></div>
+            </div>
+          </div>
+          <div class="fin-hero-foot"><span>Total saldo semua waktu</span><b id="fin-total-balance">Rp0</b></div>
+        </section>
+
+        <section class="fin-card">
+          <div class="fin-card-head">
+            <div><span class="section-kicker">ANGGARAN</span><h2>Anggaran bulanan</h2></div>
+            <button type="button" class="fin-chip" id="fin-edit-budget">Atur</button>
+          </div>
+          <div class="fin-budget-line"><strong id="fin-budget-spent">Rp0</strong><span id="fin-budget-of">dari belum diatur</span></div>
+          <div class="fin-track"><span id="fin-budget-fill" data-state="ok"></span></div>
+          <p class="fin-note" id="fin-budget-caption">Atur anggaran untuk memantau pengeluaranmu.</p>
+          <p class="fin-hint" id="fin-budget-hint" hidden></p>
+        </section>
+
+        <section class="fin-card">
+          <div class="fin-card-head">
+            <div><span class="section-kicker">TREN</span><h2>Pengeluaran 6 bulan</h2></div>
+          </div>
+          <div class="fin-bars" id="fin-trend"></div>
+        </section>
+
+        <section class="fin-card">
+          <div class="fin-card-head">
+            <div><span class="section-kicker">RINCIAN</span><h2>Per kategori</h2></div>
+          </div>
+          <div class="fin-cats" id="fin-categories"></div>
+        </section>
+
+        <div class="task-filters" role="group" aria-label="Filter transaksi">
+          <button type="button" class="filter-pill active" data-fin-filter="all">Semua <span id="fin-count-all">0</span></button>
+          <button type="button" class="filter-pill" data-fin-filter="expense">Keluar <span id="fin-count-expense">0</span></button>
+          <button type="button" class="filter-pill" data-fin-filter="income">Masuk <span id="fin-count-income">0</span></button>
+        </div>
+
+        <div class="fin-list" id="fin-list" aria-live="polite"></div>
+        <div class="fin-bottom-space"></div>
+      </div>
+
+    </section>
+
+    <!-- FLOATING TAB BAR -->
+    <nav class="tab-bar" aria-label="Navigasi utama">
+
+      <button class="tab active" data-page="home">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 10.5 12 3l9 7.5"/>
+          <path d="M5 9v11h14V9"/>
+          <path d="M9 20v-7h6v7"/>
+        </svg>
+        <span>Home</span>
+      </button>
+
+      <button class="tab" data-page="tasks">
+        <svg viewBox="0 0 24 24">
+          <rect x="4" y="3" width="16" height="18" rx="3"/>
+          <path d="M8 8h8M8 12h8M8 16h5"/>
+        </svg>
+        <span>Tugas</span>
+      </button>
+
+      <button class="tab" data-page="focus">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="13" r="8"/>
+          <path d="M12 9v4l3 2M9 2h6M12 2v3"/>
+        </svg>
+        <span>Fokus</span>
+      </button>
+
+      <button class="tab" data-page="notes">
+        <svg viewBox="0 0 24 24">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <path d="M14 2v6h6M8 13h8M8 17h8"/>
+        </svg>
+        <span>Catatan</span>
+      </button>
+
+      <button class="tab" data-page="more">
+        <svg viewBox="0 0 24 24">
+          <circle cx="5" cy="12" r="1"/>
+          <circle cx="12" cy="12" r="1"/>
+          <circle cx="19" cy="12" r="1"/>
+        </svg>
+        <span>Lainnya</span>
+      </button>
+
+    </nav>
+
+  </main>
+
+            <button class="task-fab" id="open-task-form" aria-label="Tambah tugas">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Tambah tugas</span>
+        </button>
+
+            <div class="task-modal-backdrop" id="task-modal" aria-hidden="true">
+          <section class="task-modal" role="dialog" aria-modal="true" aria-labelledby="task-form-title">
+            <div class="modal-grabber"></div>
+            <div class="task-modal-header">
+              <div><span class="section-kicker">CATAT PEKERJAAN</span><h2 id="task-form-title">Tugas baru</h2></div>
+              <button type="button" class="modal-close" id="close-task-form" aria-label="Tutup">×</button>
+            </div>
+            <form id="task-form">
+              <input type="hidden" id="task-edit-id">
+              <label class="form-field">
+                <span>Nama tugas</span>
+                <input id="task-title-input" type="text" maxlength="90" placeholder="Contoh: Rangkuman bab termodinamika" required>
+              </label>
+              <div class="form-row">
+                <label class="form-field">
+                  <span>Mata pelajaran</span>
+                  <input id="task-subject-input" type="text" maxlength="40" placeholder="Contoh: Fisika" value="Umum">
+                </label>
+                <label class="form-field">
+                  <span>Tenggat</span>
+                  <input id="task-date-input" type="hidden">
+                  <button type="button" class="date-trigger" data-date-for="task-date-input" data-placeholder="Pilih tanggal" data-clearable="true">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+                    <span class="date-trigger-text">Pilih tanggal</span>
+                  </button>
+                </label>
+              </div>
+              <fieldset class="priority-field">
+                <legend>Prioritas</legend>
+                <div class="priority-options">
+                  <label><input type="radio" name="task-priority" value="low"><span class="priority-choice low-choice">Rendah</span></label>
+                  <label><input type="radio" name="task-priority" value="medium" checked><span class="priority-choice medium-choice">Sedang</span></label>
+                  <label><input type="radio" name="task-priority" value="high"><span class="priority-choice high-choice">Tinggi</span></label>
+                </div>
+              </fieldset>
+              <div class="task-form-actions">
+                <button type="button" class="form-cancel" id="cancel-task-form">Batal</button>
+                <button type="submit" class="form-submit" id="save-task-button">Simpan tugas</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+
+
+        <button class="notes-fab" id="open-note-form" type="button" aria-label="Tambah catatan">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Catatan baru</span>
+        </button>
+
+        <div class="note-modal-backdrop" id="note-modal" aria-hidden="true">
+          <section class="note-modal" role="dialog" aria-modal="true" aria-labelledby="note-form-title">
+            <div class="modal-grabber"></div>
+            <div class="note-modal-header">
+              <div><span class="section-kicker">SIMPAN IDEMU</span><h2 id="note-form-title">Catatan baru</h2></div>
+              <button type="button" class="modal-close" id="close-note-form" aria-label="Tutup">×</button>
+            </div>
+            <form id="note-form">
+              <input type="hidden" id="note-edit-id">
+              <label class="form-field">
+                <span>Judul catatan</span>
+                <input id="note-title-input" type="text" maxlength="80" placeholder="Contoh: Rumus turunan fungsi" required>
+              </label>
+              <label class="form-field">
+                <span>Isi catatan</span>
+                <textarea id="note-content-input" rows="6" maxlength="5000" placeholder="Tulis ide atau materi pentingmu di sini..." required></textarea>
+              </label>
+              <div class="note-color-field">
+                <span>Warna kartu</span>
+                <div class="note-color-options">
+                  <label><input type="radio" name="note-color" value="violet" checked><i class="note-color-dot violet"></i><span>Ungu</span></label>
+                  <label><input type="radio" name="note-color" value="blue"><i class="note-color-dot blue"></i><span>Biru</span></label>
+                  <label><input type="radio" name="note-color" value="mint"><i class="note-color-dot mint"></i><span>Mint</span></label>
+                  <label><input type="radio" name="note-color" value="amber"><i class="note-color-dot amber"></i><span>Amber</span></label>
+                </div>
+              </div>
+              <div class="note-form-actions">
+                <button type="button" class="form-cancel" id="cancel-note-form">Batal</button>
+                <button type="submit" class="form-submit" id="save-note-button">Simpan catatan</button>
+              </div>
+            </form>
+          </section>
+        </div>
+  <button class="fin-fab" id="open-fin-form" type="button" aria-label="Catat transaksi">
+    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    <span>Catat transaksi</span>
+  </button>
+
+  <div class="fin-modal-backdrop" id="fin-modal" aria-hidden="true">
+    <section class="fin-modal" role="dialog" aria-modal="true" aria-labelledby="fin-form-title">
+      <div class="modal-grabber"></div>
+      <div class="fin-modal-header">
+        <div><span class="section-kicker">CATAT UANG</span><h2 id="fin-form-title">Transaksi baru</h2></div>
+        <button type="button" class="modal-close" id="close-fin-form" aria-label="Tutup">×</button>
+      </div>
+      <form id="fin-form">
+        <input type="hidden" id="fin-edit-id">
+        <div class="fin-type-switch" role="group" aria-label="Jenis transaksi">
+          <label><input type="radio" name="fin-type" value="expense" checked><span class="out">Pengeluaran</span></label>
+          <label><input type="radio" name="fin-type" value="income"><span class="in">Pemasukan</span></label>
+        </div>
+        <label class="fin-field">
+          <span>Jumlah</span>
+          <div class="fin-amount-wrap"><i>Rp</i><input id="fin-amount-input" type="text" inputmode="numeric" placeholder="0" autocomplete="off" required></div>
+        </label>
+        <fieldset class="fin-cat-field">
+          <legend>Kategori</legend>
+          <div class="fin-cat-grid" id="fin-cat-grid"></div>
+        </fieldset>
+        <div class="fin-row">
+          <label class="fin-field"><span>Tanggal</span><input id="fin-date-input" type="hidden">
+            <button type="button" class="date-trigger" data-date-for="fin-date-input" data-placeholder="Pilih tanggal" data-clearable="false">
+              <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+              <span class="date-trigger-text">Pilih tanggal</span>
+            </button></label>
+          <label class="fin-field"><span>Catatan</span><input id="fin-note-input" type="text" maxlength="60" placeholder="Opsional" autocomplete="off"></label>
+        </div>
+        <div class="fin-actions">
+          <button type="button" class="form-cancel" id="cancel-fin-form">Batal</button>
+          <button type="submit" class="form-submit" id="save-fin-button">Simpan</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="fin-modal-backdrop" id="fin-budget-modal" aria-hidden="true">
+    <section class="fin-modal" role="dialog" aria-modal="true" aria-labelledby="fin-budget-title">
+      <div class="modal-grabber"></div>
+      <div class="fin-modal-header">
+        <div><span class="section-kicker">ANGGARAN</span><h2 id="fin-budget-title">Anggaran bulanan</h2></div>
+        <button type="button" class="modal-close" id="close-fin-budget" aria-label="Tutup">×</button>
+      </div>
+      <form id="fin-budget-form">
+        <label class="fin-field">
+          <span>Batas pengeluaran per bulan</span>
+          <div class="fin-amount-wrap"><i>Rp</i><input id="fin-budget-input" type="text" inputmode="numeric" placeholder="0" autocomplete="off"></div>
+        </label>
+        <div class="fin-actions">
+          <button type="button" class="form-cancel" id="clear-fin-budget">Hapus anggaran</button>
+          <button type="submit" class="form-submit">Simpan</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div class="dialog-backdrop" id="app-dialog" aria-hidden="true">
+    <section class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-message">
+      <div class="dialog-icon" id="dialog-icon"></div>
+      <h3 id="dialog-title">Konfirmasi</h3>
+      <p id="dialog-message"></p>
+      <div class="dialog-actions">
+        <button type="button" class="dialog-btn" id="dialog-cancel">Batal</button>
+        <button type="button" class="dialog-btn confirm" id="dialog-confirm">OK</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="cal-backdrop" id="cal-picker" aria-hidden="true">
+    <section class="cal" role="dialog" aria-modal="true" aria-label="Pilih tanggal">
+      <div class="cal-head">
+        <button type="button" class="cal-nav" id="cal-prev" aria-label="Bulan sebelumnya"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+        <strong id="cal-title">Bulan</strong>
+        <button type="button" class="cal-nav" id="cal-next" aria-label="Bulan berikutnya"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+      <div class="cal-week" aria-hidden="true"><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span><span>Min</span></div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-quick" id="cal-quick">
+        <button type="button" data-cal-add="0">Hari ini</button>
+        <button type="button" data-cal-add="1">Besok</button>
+        <button type="button" data-cal-add="7">Minggu depan</button>
+      </div>
+      <div class="cal-foot">
+        <button type="button" class="cal-clear" id="cal-clear">Hapus tanggal</button>
+        <button type="button" class="cal-close" id="cal-close">Tutup</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
