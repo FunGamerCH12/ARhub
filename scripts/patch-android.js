@@ -5,7 +5,6 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..");
 const manifestPath = path.join(root, "android/app/src/main/AndroidManifest.xml");
-const drawableDir = path.join(root, "android/app/src/main/res/drawable");
 
 let manifest = fs.readFileSync(manifestPath, "utf8");
 const permissions = [
@@ -23,9 +22,17 @@ for (const permission of permissions) {
 }
 fs.writeFileSync(manifestPath, manifest);
 
-fs.mkdirSync(drawableDir, { recursive: true });
-fs.copyFileSync(
-  path.join(root, "android-res/drawable/ic_stat_pomodoro.xml"),
-  path.join(drawableDir, "ic_stat_pomodoro.xml")
-);
-console.log("Ikon notifikasi disalin ke res/drawable");
+// Salin semua isi android-res/ ke res/ (ikon notifikasi + ikon peluncur).
+// File dengan nama sama (ic_launcher.xml) menggantikan bawaan Capacitor.
+const resDir = path.join(root, "android/app/src/main/res");
+function copyDir(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    const src = path.join(from, entry.name);
+    const dest = path.join(to, entry.name);
+    if (entry.isDirectory()) copyDir(src, dest);
+    else fs.copyFileSync(src, dest);
+  }
+}
+copyDir(path.join(root, "android-res"), resDir);
+console.log("Resource Android disalin ke", resDir);

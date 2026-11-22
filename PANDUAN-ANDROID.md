@@ -31,3 +31,19 @@ Kalau mau menambah manual, taruh di atas tag `<application`:
 - Notifikasi menetap bisa digeser pengguna di Android 14+; ini aturan sistem.
 - Notifikasi menetap baru hilang saat app dibuka lagi setelah timer selesai,
   karena JavaScript berhenti di latar belakang.
+
+## Timer lanjut otomatis (v2)
+- Selesai fokus -> istirahat mulai sendiri -> selesai -> fokus lagi, tanpa tekan Mulai.
+- Saat Mulai ditekan, 8 fase ke depan dijadwalkan sekaligus (ID 1100-1107),
+  jadi notifikasi tetap berbunyi walau app ditutup. ID 1002 = notifikasi menetap.
+- Untuk mematikan lanjut-otomatis: ubah `FOCUS_AUTO_CONTINUE` jadi `false` di app.js.
+- Kalau app ditinggal lebih dari 8 fase (sekitar 2 jam), timer berhenti dan hanya
+  8 fase yang dihitung ke statistik.
+
+## Tombol Kembali & ikon (v3)
+- Tombol Kembali Android: menutup jendela yang terbuka (kalender, dialog, form),
+  lalu kembali ke Home, lalu keluar dari aplikasi. Butuh plugin @capacitor/app
+  (sudah ada di package.json).
+- Ikon peluncur adaptif (ungu-gelap + ikon timer) ditaruh di android-res/ dan
+  menggantikan ikon bawaan Capacitor untuk Android 8 ke atas. Android 13 ke atas
+  juga mendapat versi satu warna untuk "ikon bertema".

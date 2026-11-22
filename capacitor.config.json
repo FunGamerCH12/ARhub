@@ -6,5 +6,6 @@
     "LocalNotifications": {
       "smallIcon": "ic_stat_pomodoro"
     }
-  }
+  },
+  "backgroundColor": "#0A0A0C"
 }
