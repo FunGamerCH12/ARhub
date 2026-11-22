@@ -19,7 +19,8 @@ const STORAGE = {
   budget: "schoolhub.budget",
   focusSession: "schoolhub.focusSession",
   notes: "schoolhub.notes",
-  transactions: "schoolhub.transactions"
+  transactions: "schoolhub.transactions",
+  settings: "schoolhub.settings"
 };
 
 function readStorage(key, fallback) {
@@ -54,7 +55,7 @@ function navigate(pageName) {
 
   if (!targetPage) return;
 
-  const tabTarget = pageName === "finance" ? "more" : pageName;
+  const tabTarget = (pageName === "finance" || pageName === "settings") ? "more" : pageName;
 
   tabs.forEach(tab => {
     const active = tab.dataset.page === tabTarget;
@@ -104,6 +105,10 @@ function navigate(pageName) {
 
   if (pageName === "finance") {
     renderFinance();
+  }
+
+  if (pageName === "settings") {
+    refreshSettingsStatus();
   }
 
   const taskFab = document.getElementById("open-task-form");
@@ -790,22 +795,49 @@ let focusRemaining = focusDuration;
 let focusRunning = false;
 let focusEndsAt = null;
 let focusTick = null;
+let focusCycle = 0;
 
 /* =====================================
    NOTIFIER (notifikasi APK + browser)
 ===================================== */
 
-const NOTIF_ID = { ongoing: 1002, planBase: 1100 }; // sesi: 1100, 1101, 1102, ...
-const AUTO_PHASES = 8;               // jumlah fase yang dijadwalkan sekaligus (fokus+istirahat)
-const FOCUS_AUTO_CONTINUE = true;    // false = berhenti tiap sesi selesai (cara lama)
-const NOTIF_CHANNEL = "pomodoro";
-const NOTIF_CHANNEL_ONGOING = "pomodoro-berjalan";
-const NOTIF_SMALL_ICON = "ic_stat_pomodoro";
+const AUTO_PHASES = 8;   // jumlah fase yang dijadwalkan ke native sekaligus
+const LONG_EVERY = 4;    // istirahat panjang setiap 4 sesi fokus
+
+function loadSettings() {
+  const saved = readStorage(STORAGE.settings, {});
+  return saved && typeof saved === "object" ? saved : {};
+}
+
+function saveSettings(patch) {
+  writeStorage(STORAGE.settings, { ...loadSettings(), ...patch });
+}
+
+function autoContinueEnabled() {
+  return loadSettings().autoContinue !== false;
+}
+
+function phaseMinutes(mode) {
+  return mode === "long" ? FOCUS_PRESETS.break * 3 : FOCUS_PRESETS[mode];
+}
+
+function phaseLabel(mode) {
+  return mode === "work" ? "Fokus" : mode === "long" ? "Istirahat panjang" : "Istirahat";
+}
+
+function phaseNextText(mode) {
+  return mode === "work" ? "fokus" : mode === "long" ? "istirahat panjang" : "istirahat";
+}
+
+// completedFocus = jumlah sesi fokus yang sudah selesai (termasuk yang baru saja berakhir)
+function phaseAfter(mode, completedFocus) {
+  if (mode === "work") return completedFocus % LONG_EVERY === 0 ? "long" : "break";
+  return "work";
+}
 
 const Notifier = {
   token: 0,
   planEnd: 0,
-  channelReady: false,
 
   // true kalau app berjalan sebagai APK Capacitor
   isNative() {
@@ -820,22 +852,32 @@ const Notifier = {
     }
   },
 
-  // ambil plugin LocalNotifications (null kalau di browser / plugin tidak ada)
-  plugin() {
+  // Ambil plugin native berdasarkan nama. Kalau belum terdaftar di Capacitor.Plugins,
+  // didaftarkan lewat registerPlugin (hasilnya disimpan supaya tidak didaftarkan dua kali).
+  nativePlugin(name) {
     try {
       if (!this.isNative()) return null;
-      const plugins = window.Capacitor.Plugins || {};
-      return plugins.LocalNotifications || null;
+      this.cache = this.cache || {};
+      if (this.cache[name]) return this.cache[name];
+
+      const cap = window.Capacitor;
+      let found = (cap.Plugins || {})[name] || null;
+      if (!found && typeof cap.registerPlugin === "function") found = cap.registerPlugin(name);
+      if (found) this.cache[name] = found;
+      return found;
     } catch (error) {
       return null;
     }
   },
 
-  formatClock(timestamp) {
-    const date = new Date(timestamp);
-    const hh = String(date.getHours()).padStart(2, "0");
-    const mm = String(date.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
+  // plugin LocalNotifications: hanya dipakai untuk meminta izin notifikasi
+  plugin() {
+    return this.nativePlugin("LocalNotifications");
+  },
+
+  // plugin native buatan sendiri: hitung mundur, alarm, Hyper Island
+  timer() {
+    return this.nativePlugin("PomodoroTimer");
   },
 
   getTexts(mode) {
@@ -874,139 +916,66 @@ const Notifier = {
     }
   },
 
-  // Buat 2 channel Android: "pomodoro" (bunyi + muncul di atas layar)
-  // dan "pomodoro-berjalan" (senyap, khusus notifikasi menetap)
-  async createChannel() {
-    const plugin = this.plugin();
-    if (!plugin || this.channelReady) return false;
-    try {
-      await plugin.createChannel({
-        id: NOTIF_CHANNEL,
-        name: "Pomodoro",
-        description: "Pemberitahuan saat sesi fokus atau istirahat selesai",
-        importance: 4,
-        visibility: 1,
-        vibration: true,
-        lights: true
+  // Kirim rangkaian fase ke native: fokus -> istirahat -> fokus ...
+  // Native yang menjalankan alarm dan hitung mundur, jadi aman walau app ditutup.
+  async scheduleSession(mode, endsAt, cycle = 0) {
+    const timer = this.timer();
+    if (!timer) return false;
+
+    const firstEnd = Number(endsAt);
+    if (!(firstEnd > Date.now())) return false;
+
+    const count = autoContinueEnabled() ? AUTO_PHASES : 1;
+    const phases = [];
+    let current = mode;
+    let done = cycle;
+    let at = firstEnd;
+
+    for (let i = 0; i < count; i++) {
+      const completed = current === "work" ? done + 1 : done;
+      const next = phaseAfter(current, completed);
+      phases.push({
+        label: phaseLabel(current),
+        next: phaseNextText(next),
+        startsAt: at - phaseMinutes(current) * 60000,
+        endsAt: at
       });
-      await plugin.createChannel({
-        id: NOTIF_CHANNEL_ONGOING,
-        name: "Timer berjalan",
-        description: "Menampilkan timer yang sedang berjalan",
-        importance: 2,
-        visibility: 1,
-        vibration: false
-      });
-      this.channelReady = true;
-      return true;
-    } catch (error) {
-      console.warn("Gagal membuat channel notifikasi:", error);
-      return false;
-    }
-  },
-
-  // Jadwalkan notifikasi akhir tiap fase, berantai: fokus -> istirahat -> fokus ...
-  // Jadi tetap berbunyi walau app ditutup dan timer lanjut sendiri.
-  async scheduleSession(mode, endsAt) {
-    const plugin = this.plugin();
-    if (!plugin) return false;
-    if (!(Number(endsAt) > Date.now())) return false;
-
-    const items = [];
-    let phaseMode = mode;
-    let at = Number(endsAt);
-    for (let i = 0; i < AUTO_PHASES; i++) {
-      const texts = this.getTexts(phaseMode);
-      items.push({
-        id: NOTIF_ID.planBase + i,
-        title: texts.title,
-        body: texts.body,
-        channelId: NOTIF_CHANNEL,
-        smallIcon: NOTIF_SMALL_ICON,
-        schedule: { at: new Date(at), allowWhileIdle: true }
-      });
-      phaseMode = phaseMode === "work" ? "break" : "work";
-      at += FOCUS_PRESETS[phaseMode] * 60000;
+      done = completed;
+      current = next;
+      at += phaseMinutes(current) * 60000;
     }
 
     try {
-      await this.cancelPlan();
-      await plugin.schedule({ notifications: items });
-      this.planEnd = items[items.length - 1].schedule.at.getTime();
+      await timer.schedule({ phases });
+      this.planEnd = phases[phases.length - 1].endsAt;
       return true;
     } catch (error) {
-      console.warn("Gagal menjadwalkan notifikasi:", error);
+      console.warn("Gagal menjadwalkan timer native:", error);
       return false;
     }
   },
 
-  // Batalkan hanya jadwal yang belum berbunyi (notifikasi yang sudah muncul dibiarkan)
-  async cancelPlan() {
-    const plugin = this.plugin();
-    if (!plugin) return false;
+  // Timer dijeda: tampilkan status tanpa hitung mundur
+  async showPaused(mode, remainingMs) {
+    this.token += 1;
+    const timer = this.timer();
+    if (!timer) return false;
     try {
-      const pending = await plugin.getPending();
-      const ids = (pending.notifications || [])
-        .map(item => item.id)
-        .filter(id => id >= NOTIF_ID.planBase && id < NOTIF_ID.planBase + AUTO_PHASES);
-      if (ids.length) {
-        await plugin.cancel({ notifications: ids.map(id => ({ id })) });
-      }
+      await timer.showPaused({ label: phaseLabel(mode), remainingMs });
       return true;
     } catch (error) {
-      console.warn("Gagal membatalkan jadwal lama:", error);
+      console.warn("Gagal menampilkan status jeda:", error);
       return false;
     }
   },
 
-  // Notifikasi menetap: "Fokus sampai 14:25"
-  async showOngoing(mode, endsAt) {
-    const plugin = this.plugin();
-    if (!plugin) return false;
-    if (!(Number(endsAt) > Date.now())) return false;
-
-    const label = mode === "work" ? "Fokus" : "Istirahat";
-    try {
-      await plugin.schedule({
-        notifications: [{
-          id: NOTIF_ID.ongoing,
-          title: "School Hub",
-          body: `${label} sampai ${this.formatClock(endsAt)}`,
-          channelId: NOTIF_CHANNEL_ONGOING,
-          smallIcon: NOTIF_SMALL_ICON,
-          ongoing: true,
-          autoCancel: false
-        }]
-      });
-      return true;
-    } catch (error) {
-      console.warn("Gagal menampilkan notifikasi menetap:", error);
-      return false;
-    }
-  },
-
-  // Hapus hanya notifikasi menetap
-  async removeOngoing() {
-    const plugin = this.plugin();
-    if (!plugin) return false;
-    try {
-      await plugin.cancel({ notifications: [{ id: NOTIF_ID.ongoing }] });
-      return true;
-    } catch (error) {
-      console.warn("Gagal menghapus notifikasi menetap:", error);
-      return false;
-    }
-  },
-
-  // Batalkan jadwal + notifikasi menetap
+  // Hapus semua jadwal dan notifikasi timer
   async cancelAll() {
     this.token += 1; // membatalkan proses sinkronisasi yang masih menunggu
-    const plugin = this.plugin();
-    if (!plugin) return false;
+    const timer = this.timer();
+    if (!timer) return false;
     try {
-      const ids = [{ id: NOTIF_ID.ongoing }];
-      for (let i = 0; i < AUTO_PHASES; i++) ids.push({ id: NOTIF_ID.planBase + i });
-      await plugin.cancel({ notifications: ids });
+      await timer.cancel();
       return true;
     } catch (error) {
       console.warn("Gagal membatalkan notifikasi:", error);
@@ -1029,14 +998,14 @@ const Notifier = {
   }
 };
 
-// Urutan: izin -> channel -> jadwal -> notifikasi menetap.
 // Dicek lagi setelah tiap langkah, supaya kalau pengguna keburu Jeda/Reset
-// jadwal lama tidak muncul.
+// jadwal lama tidak dikirim ke native.
 async function syncFocusNotifications(ask = true) {
   if (!focusRunning || !focusEndsAt) return;
 
   const endsAt = focusEndsAt;
   const mode = focusMode;
+  const cycle = focusCycle;
   const token = ++Notifier.token;
   const stillValid = () =>
     focusRunning && focusEndsAt === endsAt && Notifier.token === token;
@@ -1044,14 +1013,7 @@ async function syncFocusNotifications(ask = true) {
   const allowed = await Notifier.ensurePermission(ask);
   if (!allowed || !stillValid()) return;
 
-  await Notifier.createChannel();
-  if (!stillValid()) return;
-
-  await Notifier.scheduleSession(mode, endsAt);
-  if (!stillValid()) return;
-
-  await Notifier.showOngoing(mode, endsAt);
-  if (!focusRunning) Notifier.cancelAll();
+  await Notifier.scheduleSession(mode, endsAt, cycle);
 }
 
 function startFocusTick() {
@@ -1099,15 +1061,17 @@ function saveFocusSession() {
     duration: focusDuration,
     remaining: focusRemaining,
     running: focusRunning,
-    endsAt: focusEndsAt
+    endsAt: focusEndsAt,
+    cycle: focusCycle
   });
 }
 
 function restoreFocusSession() {
   const saved = getFocusSession();
   if (!saved) return;
-  if (saved.mode !== "work" && saved.mode !== "break") return;
+  if (!["work", "break", "long"].includes(saved.mode)) return;
   focusMode = saved.mode;
+  focusCycle = Math.max(0, Number(saved.cycle) || 0);
   focusDuration = Math.max(60, Number(saved.duration) || 1500);
   focusRunning = Boolean(saved.running);
   focusEndsAt = saved.endsAt ? Number(saved.endsAt) : null;
@@ -1125,21 +1089,30 @@ function restoreFocusSession() {
   if (focusRunning && focusEndsAt) syncFocusNotifications(false);
 }
 
+const pad2 = value => String(value).padStart(2, "0");
+
+// Bagian ringan: hanya angka dan cincin. Dipanggil tiap detik.
+function renderFocusClock() {
+  const display = document.getElementById("timer-display");
+  if (!display) return;
+
+  display.textContent = `${pad2(Math.floor(focusRemaining / 60))}:${pad2(focusRemaining % 60)}`;
+
+  const progress = focusDuration > 0 ? (focusDuration - focusRemaining) / focusDuration : 0;
+  document.getElementById("timer-progress").style.strokeDashoffset =
+    TIMER_CIRCUMFERENCE * (1 - progress);
+}
+
 function renderFocusTimer() {
   const display = document.getElementById("timer-display");
   if (!display) return;
 
-  const minutes = Math.floor(focusRemaining / 60);
-  const seconds = focusRemaining % 60;
-  display.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-
-  const progress = focusDuration > 0 ? (focusDuration - focusRemaining) / focusDuration : 0;
-  const circle = document.getElementById("timer-progress");
-  circle.style.strokeDasharray = TIMER_CIRCUMFERENCE;
-  circle.style.strokeDashoffset = TIMER_CIRCUMFERENCE * (1 - progress);
+  document.getElementById("timer-progress").style.strokeDasharray = TIMER_CIRCUMFERENCE;
+  renderFocusClock();
 
   const isWork = focusMode === "work";
-  document.getElementById("timer-caption").textContent = isWork ? "WAKTU FOKUS" : "WAKTU ISTIRAHAT";
+  document.getElementById("timer-caption").textContent =
+    isWork ? "WAKTU FOKUS" : focusMode === "long" ? "ISTIRAHAT PANJANG" : "WAKTU ISTIRAHAT";
   document.getElementById("timer-state").textContent = focusRunning
     ? "Sedang berjalan"
     : focusRemaining === 0 ? "Sesi selesai" : "Siap untuk mulai";
@@ -1149,14 +1122,20 @@ function renderFocusTimer() {
     ? '<path d="M7 5h4v14H7zM14 5h4v14h-4z"/>'
     : '<path d="m8 5 12 7-12 7V5Z"/>';
 
+  const modeForButtons = focusMode === "long" ? "break" : focusMode;
   document.querySelectorAll("[data-focus-mode]").forEach(button => {
-    button.classList.toggle("active", button.dataset.focusMode === focusMode);
+    button.classList.toggle("active", button.dataset.focusMode === modeForButtons);
   });
 
   document.querySelectorAll("[data-work-minutes]").forEach(button => {
-    const selected = Number(button.dataset.workMinutes) * 60 ===
-      (focusMode === "work" ? focusDuration : FOCUS_PRESETS.work * 60);
+    const selected = Number(button.dataset.workMinutes) === FOCUS_PRESETS.work &&
+      Number(button.dataset.breakMinutes) === FOCUS_PRESETS.break;
     button.classList.toggle("active", selected);
+  });
+
+  const filled = focusMode === "long" ? LONG_EVERY : focusCycle % LONG_EVERY;
+  document.querySelectorAll("#cycle-dots i").forEach((dot, index) => {
+    dot.classList.toggle("done", index < filled);
   });
 
   updateFocusTodayCard();
@@ -1181,8 +1160,7 @@ function startFocusTimer() {
   focusEndsAt = Date.now() + focusRemaining * 1000;
   saveFocusSession();
   renderFocusTimer();
-  if (focusTick) clearInterval(focusTick);
-  focusTick = setInterval(tickFocusTimer, 250);
+  startFocusTick();
   syncFocusNotifications(true);
 }
 
@@ -1191,7 +1169,7 @@ function pauseFocusTimer() {
   focusRunning = false;
   focusEndsAt = null;
   if (focusTick) clearInterval(focusTick);
-  Notifier.cancelAll();
+  Notifier.showPaused(focusMode, focusRemaining * 1000);
   saveFocusSession();
   renderFocusTimer();
 }
@@ -1206,13 +1184,19 @@ function resetFocusTimer() {
   renderFocusTimer();
 }
 
+// Ringan: tidak melakukan apa-apa saat layar mati / app di latar belakang
 function tickFocusTimer() {
-  if (!focusRunning || !focusEndsAt) return;
-  focusRemaining = Math.max(0, Math.ceil((focusEndsAt - Date.now()) / 1000));
-  if (focusRemaining <= 0) {
+  if (!focusRunning || !focusEndsAt || document.hidden) return;
+
+  const remaining = Math.max(0, Math.ceil((focusEndsAt - Date.now()) / 1000));
+  if (remaining <= 0) {
+    focusRemaining = 0;
     catchUpFocusSession();
-  } else {
-    renderFocusTimer();
+    return;
+  }
+  if (remaining !== focusRemaining) {
+    focusRemaining = remaining;
+    renderFocusClock();
   }
 }
 
@@ -1236,17 +1220,15 @@ function finishFocusSession(silent = false) {
       targetMinutes
     });
     updateFocusSummary();
-    focusMode = "break";
-    focusDuration = FOCUS_PRESETS.break * 60;
-  } else {
-    focusMode = "work";
-    focusDuration = FOCUS_PRESETS.work * 60;
+    focusCycle += 1;
   }
 
+  focusMode = phaseAfter(completedMode, focusCycle);
+  focusDuration = phaseMinutes(focusMode) * 60;
   focusRemaining = focusDuration;
 
   // Lanjut otomatis ke fase berikutnya, tanpa menekan Mulai lagi
-  if (FOCUS_AUTO_CONTINUE) {
+  if (autoContinueEnabled()) {
     focusRunning = true;
     focusEndsAt = endedAt + focusDuration * 1000;
     focusRemaining = Math.max(0, Math.ceil((focusEndsAt - Date.now()) / 1000));
@@ -1262,13 +1244,13 @@ function finishFocusSession(silent = false) {
 
   Notifier.showWeb(completedMode);
   if (focusRunning) {
-    Notifier.showOngoing(focusMode, focusEndsAt);
-    // jadwal hampir habis -> perbarui (ditunda supaya notifikasi barusan sempat berbunyi)
-    if (Notifier.plugin() && Notifier.planEnd - Date.now() < FOCUS_PRESETS.work * 120000) {
+    // Native sudah memasang hitung mundur fase berikutnya. Kalau jadwal hampir habis,
+    // kirim jadwal baru (ditunda supaya bunyi alarm barusan tidak terpotong).
+    if (Notifier.timer() && Notifier.planEnd - Date.now() < FOCUS_PRESETS.work * 120000) {
       setTimeout(() => syncFocusNotifications(false), 5000);
     }
   } else {
-    Notifier.removeOngoing();
+    Notifier.cancelAll();
   }
 }
 
@@ -1277,16 +1259,47 @@ function setFocusMode(mode) {
   if (focusRunning) pauseFocusTimer();
   Notifier.cancelAll();
   focusMode = mode;
-  focusDuration = FOCUS_PRESETS[mode] * 60;
+  focusDuration = phaseMinutes(mode) * 60;
   focusRemaining = focusDuration;
   saveFocusSession();
   renderFocusTimer();
+}
+
+// Lewati fase sekarang. Kalau timer sedang berjalan, fase berikutnya langsung berjalan.
+function skipFocusPhase() {
+  const wasRunning = focusRunning;
+  const next = focusMode === "work" ? "break" : "work";
+
+  focusRunning = false;
+  focusEndsAt = null;
+  if (focusTick) clearInterval(focusTick);
+
+  focusMode = next;
+  focusDuration = phaseMinutes(next) * 60;
+  focusRemaining = focusDuration;
+
+  if (wasRunning) {
+    startFocusTimer();
+  } else {
+    Notifier.cancelAll();
+    saveFocusSession();
+    renderFocusTimer();
+  }
 }
 
 function initializeFocusTimer() {
   const display = document.getElementById("timer-display");
   if (!display || display.dataset.initialized === "true") return;
   display.dataset.initialized = "true";
+
+  // Pilihan durasi terakhir diingat
+  const settings = loadSettings();
+  if (Number(settings.work) > 0 && Number(settings.break) > 0) {
+    FOCUS_PRESETS.work = Number(settings.work);
+    FOCUS_PRESETS.break = Number(settings.break);
+  }
+  focusDuration = FOCUS_PRESETS.work * 60;
+  focusRemaining = focusDuration;
 
   restoreFocusSession();
   renderFocusTimer();
@@ -1297,16 +1310,7 @@ function initializeFocusTimer() {
   });
 
   document.getElementById("timer-reset").addEventListener("click", resetFocusTimer);
-
-  document.getElementById("timer-skip").addEventListener("click", () => {
-    if (focusMode === "work") {
-      if (focusRunning) pauseFocusTimer();
-      setFocusMode("break");
-    } else {
-      if (focusRunning) pauseFocusTimer();
-      setFocusMode("work");
-    }
-  });
+  document.getElementById("timer-skip").addEventListener("click", skipFocusPhase);
 
   document.querySelectorAll("[data-focus-mode]").forEach(button => {
     button.addEventListener("click", () => setFocusMode(button.dataset.focusMode));
@@ -1315,8 +1319,10 @@ function initializeFocusTimer() {
   document.querySelectorAll("[data-work-minutes]").forEach(button => {
     button.addEventListener("click", () => {
       if (focusRunning) pauseFocusTimer();
+      Notifier.cancelAll();
       FOCUS_PRESETS.work = Number(button.dataset.workMinutes);
       FOCUS_PRESETS.break = Number(button.dataset.breakMinutes);
+      saveSettings({ work: FOCUS_PRESETS.work, break: FOCUS_PRESETS.break });
       focusMode = "work";
       focusDuration = FOCUS_PRESETS.work * 60;
       focusRemaining = focusDuration;
@@ -1326,7 +1332,10 @@ function initializeFocusTimer() {
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && focusRunning) tickFocusTimer();
+    if (!document.hidden && focusRunning) {
+      tickFocusTimer();
+      renderFocusTimer();
+    }
   });
 }
 
@@ -2330,6 +2339,178 @@ function initializeCalendar() {
 }
 
 /* =====================================
+   PENGATURAN (notifikasi, Hyper Island, cadangan)
+===================================== */
+
+function androidName(sdk) {
+  const names = { 36: "16", 35: "15", 34: "14", 33: "13", 32: "12L", 31: "12", 30: "11", 29: "10" };
+  return names[sdk] || `API ${sdk}`;
+}
+
+function setStatusRow(label, value, tone) {
+  return `<div class="set-status-row"><span>${escapeHTML(label)}</span><b class="${tone || ""}">${escapeHTML(value)}</b></div>`;
+}
+
+async function refreshSettingsStatus() {
+  const box = document.getElementById("set-status");
+  if (!box) return;
+
+  const timer = Notifier.timer();
+  if (!timer) {
+    box.innerHTML = setStatusRow("Mode", "Browser (fitur native hanya di APK)", "warn");
+    return;
+  }
+
+  try {
+    const info = await timer.getInfo();
+    const live = info.sdk >= 36
+      ? (info.liveUpdates ? ["Aktif", "ok"] : ["Dimatikan di pengaturan", "warn"])
+      : ["Perlu Android 16 / HyperOS 3", "warn"];
+
+    box.innerHTML =
+      setStatusRow("Perangkat", `${info.manufacturer} · Android ${androidName(info.sdk)}`) +
+      setStatusRow("Live Updates / Hyper Island", live[0], live[1]) +
+      setStatusRow("Alarm tepat waktu", info.exactAlarm ? "Aktif" : "Belum aktif", info.exactAlarm ? "ok" : "warn");
+  } catch (error) {
+    box.innerHTML = setStatusRow("Status", "Gagal membaca info perangkat", "warn");
+  }
+}
+
+function collectBackup() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("schoolhub.")) data[key] = localStorage.getItem(key);
+  }
+  return {
+    text: JSON.stringify({ app: "school-hub", version: 1, savedAt: new Date().toISOString(), data }),
+    count: Object.keys(data).length
+  };
+}
+
+function showBackupMessage(text) {
+  const el = document.getElementById("backup-msg");
+  el.textContent = text;
+  el.hidden = false;
+}
+
+async function copyBackup() {
+  const { text, count } = collectBackup();
+  const area = document.getElementById("backup-text");
+  area.value = text;
+
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    copied = true;
+  } catch (error) {
+    try {
+      area.focus();
+      area.select();
+      copied = document.execCommand("copy");
+    } catch (inner) {
+      copied = false;
+    }
+  }
+
+  showBackupMessage(copied
+    ? `Cadangan disalin (${count} data). Tempel dan simpan di tempat aman, misalnya catatan atau chat ke diri sendiri.`
+    : "Salin otomatis gagal. Teks cadangan sudah tampil di kotak, tekan lama lalu pilih Salin.");
+}
+
+async function restoreBackup() {
+  const raw = document.getElementById("backup-text").value.trim();
+  let parsed = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    parsed = null;
+  }
+
+  if (!parsed || parsed.app !== "school-hub" || !parsed.data || typeof parsed.data !== "object") {
+    showBackupMessage("Teks cadangan tidak valid. Tempel seluruh teks hasil Salin cadangan.");
+    return;
+  }
+
+  const ok = await showDialog({
+    title: "Pulihkan data?",
+    message: "Data di aplikasi ini akan diganti dengan isi cadangan.",
+    confirmText: "Pulihkan",
+    danger: true,
+    icon: "alert"
+  });
+  if (!ok) return;
+
+  try {
+    Object.keys(parsed.data).forEach(key => {
+      if (key.startsWith("schoolhub.") && typeof parsed.data[key] === "string") {
+        localStorage.setItem(key, parsed.data[key]);
+      }
+    });
+    location.reload();
+  } catch (error) {
+    showBackupMessage("Gagal memulihkan data.");
+  }
+}
+
+async function runNotificationTest() {
+  const timer = Notifier.timer();
+  if (!timer) {
+    showAlert("Uji notifikasi hanya bisa dijalankan di APK.", "Hanya di APK");
+    return;
+  }
+  const allowed = await Notifier.ensurePermission(true);
+  if (!allowed) {
+    showAlert("Izin notifikasi belum diberikan. Aktifkan lewat pengaturan Android.", "Izin dibutuhkan");
+    return;
+  }
+  const now = Date.now();
+  try {
+    await timer.schedule({
+      phases: [{ label: "Uji hitung mundur", next: "cek notifikasi", startsAt: now, endsAt: now + 20000 }]
+    });
+  } catch (error) {
+    showAlert("Gagal memulai uji notifikasi.");
+  }
+}
+
+function initializeSettings() {
+  const auto = document.getElementById("set-auto");
+  if (!auto || auto.dataset.initialized === "true") return;
+  auto.dataset.initialized = "true";
+
+  auto.checked = autoContinueEnabled();
+  auto.addEventListener("change", () => {
+    saveSettings({ autoContinue: auto.checked });
+    if (focusRunning) syncFocusNotifications(false);
+  });
+
+  const call = name => async () => {
+    const timer = Notifier.timer();
+    if (!timer) {
+      showAlert("Pengaturan ini hanya tersedia di APK.", "Hanya di APK");
+      return;
+    }
+    try {
+      await timer[name]();
+    } catch (error) {
+      showAlert("Tidak bisa membuka pengaturan di perangkat ini.");
+    }
+  };
+
+  document.getElementById("set-live").addEventListener("click", call("openLiveUpdateSettings"));
+  document.getElementById("set-alarm").addEventListener("click", call("openExactAlarmSettings"));
+  document.getElementById("set-test").addEventListener("click", runNotificationTest);
+  document.getElementById("backup-copy").addEventListener("click", copyBackup);
+  document.getElementById("backup-restore").addEventListener("click", restoreBackup);
+
+  // status diperbarui setelah kembali dari layar pengaturan Android
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && currentPage === "settings") refreshSettingsStatus();
+  });
+}
+
+/* =====================================
    UPDATE HOME
 ===================================== */
 
@@ -2355,6 +2536,7 @@ function initializeApp() {
   initializeNotes();
   initializeFinance();
   initializeDialog();
+  initializeSettings();
   initializeCalendar();
 
   // Tombol aksi hanya muncul pada halaman yang sesuai.
@@ -2429,7 +2611,7 @@ document.addEventListener("scroll", event => {
       const el = document.getElementById(id);
       if (el && el.classList.contains("open")) return close();
     }
-    if (currentPage === "finance") return navigate("more");
+    if (currentPage === "finance" || currentPage === "settings") return navigate("more");
     if (currentPage !== "home") return navigate("home");
     appPlugin.exitApp();
   });

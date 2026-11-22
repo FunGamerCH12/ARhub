@@ -3,11 +3,23 @@ name: Build APK
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
   workflow_dispatch:
+
+permissions:
+  contents: write   # untuk membuat Release berisi APK
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,26 +32,82 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Install dependency
         run: npm install
+
+      - name: Perkecil file web (minify)
+        run: |
+          npx --yes esbuild@0.25.10 www/app.js --minify --outfile=www/app.js --allow-overwrite
+          npx --yes esbuild@0.25.10 www/style.css --minify --outfile=www/style.css --allow-overwrite
+
+      - name: Siapkan kunci tanda tangan
+        id: key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ] && [ -n "${{ secrets.KEY_ALIAS }}" ] && [ -n "${{ secrets.KEY_PASSWORD }}" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Kunci ditemukan: APK akan ditandatangani (bisa update langsung)."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Secrets kunci belum diisi. Build debug dibuat dan TIDAK bisa dipakai untuk update antar versi."
+          fi
 
       - name: Buat project Android
         run: npx cap add android
 
-      - name: Tambah izin + ikon notifikasi
+      - name: Patch Android (izin, native, versi, tanda tangan)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: node scripts/patch-android.js
 
       - name: Sync web ke Android
         run: npx cap sync android
 
-      - name: Build APK debug
+      - name: Build APK
         working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          if [ "${{ steps.key.outputs.signed }}" = "true" ]; then
+            ./gradlew assembleRelease
+          else
+            ./gradlew assembleDebug
+          fi
+
+      - name: Rapikan nama APK
+        id: apk
+        run: |
+          if [ "${{ steps.key.outputs.signed }}" = "true" ]; then
+            SRC=android/app/build/outputs/apk/release/app-release.apk
+          else
+            SRC=android/app/build/outputs/apk/debug/app-debug.apk
+          fi
+          OUT="SchoolHub-v${VERSION_NAME}.apk"
+          cp "$SRC" "$OUT"
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: school-hub-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: school-hub-apk
+          path: ${{ steps.apk.outputs.file }}
+          retention-days: 14
+
+      - name: Terbitkan Release (APK bisa diunduh dari HP)
+        if: steps.key.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${VERSION_NAME}" "${{ steps.apk.outputs.file }}" \
+            --title "School Hub v${VERSION_NAME}" \
+            --notes "APK bertanda tangan. Pasang langsung di atas versi sebelumnya, data tetap aman."
